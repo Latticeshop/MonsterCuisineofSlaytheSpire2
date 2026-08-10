@@ -1,0 +1,8 @@
+{
+  "SNAKE_FRUIT_MEAT_POWER.title": "蛇果肉",
+  "SNAKE_FRUIT_MEAT_POWER.description": "每回合开始时，获得1点力量，获得2点中毒。",
+  "CANT_PLAY_CARDS_POWER.title": "禁出牌",
+  "CANT_PLAY_CARDS_POWER.description": "下回合不能再出任何牌。",
+  "ATTACK_COST_UP_POWER.title": "攻击费用提升",
+  "ATTACK_COST_UP_POWER.description": "本回合你打出的攻击牌耗能+1。"
+}

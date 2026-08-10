@@ -1,0 +1,8 @@
+{
+  "SNAKE_FRUIT_MEAT_POWER.title": "Snake Fruit Meat",
+  "SNAKE_FRUIT_MEAT_POWER.description": "At the start of each turn, gain 1 Strength and 2 Poison.",
+  "CANT_PLAY_CARDS_POWER.title": "Cant Play",
+  "CANT_PLAY_CARDS_POWER.description": "You cannot play any cards next turn.",
+  "ATTACK_COST_UP_POWER.title": "Attack Cost Up",
+  "ATTACK_COST_UP_POWER.description": "Attack cards you play cost +1 this turn."
+}

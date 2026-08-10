@@ -1,0 +1,5 @@
+{
+  "OPTION_MC_COOK.name": "Cook",
+  "OPTION_MC_COOK.description": "Select 2-4 [gold]Monster Cuisine[/gold] cards to cook. You will receive relics based on their cooking stats (selected cards are removed). Does not consume your rest.",
+  "OPTION_MC_COOK.descriptionDisabled": "[red]You need at least 2 Monster Cuisine cards in your deck to cook. [/red]"
+}

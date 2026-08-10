@@ -1,0 +1,12 @@
+{
+  "VEGAN_SALAD.title": "素食沙拉",
+  "VEGAN_SALAD.description": "每场战斗开始时，获得1点[gold]敏捷[/gold]。",
+  "MEAT_FEAST.title": "肉食大餐",
+  "MEAT_FEAST.description": "每场战斗开始时，获得1点[gold]力量[/gold]。",
+  "VISCOSITY_DESSERT.title": "粘稠甜点",
+  "VISCOSITY_DESSERT.description": "每场战斗开始时，回复5点生命。",
+  "DARK_DISH.title": "黑暗料理",
+  "DARK_DISH.description": "每场战斗开始时，获得2点[gold]力量[/gold]与1层[red]易伤[/red]。",
+  "SECRET_DISH.title": "秘制料理",
+  "SECRET_DISH.description": "每场战斗开始时，获得1点能量。"
+}
