@@ -1,0 +1,17 @@
+{
+  "MEATBALL.title": "Meatball",
+  "MEATBALL.description": "At the start of the first 2 turns, draw 1 extra card and gain 1 extra [gold]Energy[/gold].",
+  "MEATBALL.flavor": "A round, hearty meatball. You feel extra energetic for the first two turns.",
+  "BIG_POT_MEAT.title": "Big Pot Meat",
+  "BIG_POT_MEAT.description": "At the start of the first 3 turns, draw 1 extra card and gain 1 extra [gold]Energy[/gold].",
+  "BIG_POT_MEAT.flavor": "A big pot of meat that keeps you going for the first three turns.",
+  "HAMBURGER.title": "Hamburger",
+  "HAMBURGER.description": "At the start of each combat, gain 3 [gold]Regen[/gold]. On the first turn, draw 1 extra card and gain 1 extra [gold]Energy[/gold].",
+  "HAMBURGER.flavor": "A balanced stack of greens and meat. Fills you with confidence.",
+  "ROASTED_STONE.title": "Roasted Stone",
+  "ROASTED_STONE.description": "At the start of the first 3 turns of each combat, gain 7 [gold]Block[/gold].",
+  "ROASTED_STONE.flavor": "It's made of stone and it's great at humidifying. Really helps during dry months.",
+  "FAILED_DISH.title": "Failed Dish",
+  "FAILED_DISH.description": "A failed dish. It does nothing.",
+  "FAILED_DISH.flavor": "A burnt, unidentifiable mess. It does not look appetizing."
+}

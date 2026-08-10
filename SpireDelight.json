@@ -1,0 +1,11 @@
+{
+  "id": "SpireDelight",
+  "name": "尖塔乐事（Spire Delight）",
+  "author": "海之韵",
+  "description": "击杀怪物掉落料理卡牌，篝火烹饪：根据料理参数合成对应遗物。",
+  "version": "v0.1.0",
+  "has_pck": true,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": true
+}

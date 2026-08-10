@@ -3256,4 +3256,231 @@ SlayTheSpire2Export/
 
 ---
 
+## 附：尖塔乐事（Spire Delight）Mod 实现参考
+
+> 本节记录本工作区《尖塔乐事》Mod（Mod ID 与编译文件名为 `SpireDelight`，游戏内展示名"尖塔乐事 Spire Delight"）的落地实现，供后续维护与查阅。
+> 玩法：击杀对应怪物掉落料理卡牌；篝火"料理"选择 2-4 张料理卡，按料理参数合成一项遗物（卡牌被移除）。
+
+### 1. 项目目录结构
+
+```
+monster-cuisine/
+├── SpireDelight.csproj            # C# 项目（Godot.NET.Sdk/4.5.1，net9.0）
+├── SpireDelight.json              # Mod 清单（id=SpireDelight，游戏内名称：尖塔乐事 Spire Delight）
+├── Directory.Build.props          # Godot 路径 + 共享 NuGet 缓存
+├── NuGet.config                   # 本地缓存源（无需联网恢复 Godot.NET.Sdk）
+├── project.godot                  # Godot 项目配置
+├── build.ps1                      # 一键编译脚本（输出 build/）
+├── libs/                          # sts2.dll / 0Harmony.dll / GodotSharp.dll（从参考项目复制）
+├── MonsterCuisineCode/
+│   ├── ModInitializer.cs          # [ModInitializer] + harmony.PatchAll()
+│   ├── Cards/                     # FoodCardModel 基类 + 18 张料理卡 + FoodCardValues 数值存储
+│   ├── Powers/                    # 蛇果肉能力 / 禁出牌（鹿茸）/ 攻击费用提升（藤蔓捆面）
+│   ├── Relics/                    # 5 个合成遗物
+│   ├── RestSite/                  # CookingRestSiteOption（篝火料理）
+│   ├── Patches/                   # 掉落补丁 / 百科已发现补丁 / 休息站图标与"不消耗"补丁
+│   └── Utils/                     # FoodStats（料理参数）/ CookingManager（配方系统）
+└── SpireDelight/                  # Godot 资源（localization/zhs|eng，最终打进 .pck）
+```
+
+### 2. 零依赖实现方案（不借 BaseLib / RitsuLib）
+
+本项目全程使用游戏本体 API，无第三方 Mod 框架依赖：
+
+- **模型自动注册**：`ModelDb.AllAbstractModelSubtypes` 会通过 `ReflectionHelper.GetSubtypesInMods<AbstractModel>()` 扫描 Mod 程序集，卡牌/遗物/能力/池子类无需手动注册，`ModelDb.Card<T>()` / `RelicCmd.Obtain<T>()` 直接可用。
+- **字段持久化**：游戏自带 `[SavedProperty]`（`MegaCrit.Sts2.Core.Saves.Runs`），标记在卡牌属性上即可随存档保存/读档（如料理卡的 `PlaysUsed` 打出次数）。
+- **卡池/遗物池**：通过 `ModHelper.AddModelToPool` 把卡牌注册进原版**无色卡池**（Token 稀有度不进默认奖励/商店）、遗物注册进原版**事件遗物池**（Event 稀有度同理），仅用于百科展示。
+- **百科可见性**：`CompendiumDiscoveryPatch` 在打开卡牌/遗物图鉴时调用 `ProgressState.MarkCardAsSeen / MarkRelicAsSeen`，把本 Mod 内容标记为已见，无需先获得即可查阅。
+
+### 3. 卡牌体系
+
+#### FoodCardModel 基类（Cards/FoodCardModel.cs）
+
+- 构造：0 费，`CardRarity.Token`（不进入普通奖励池），由子类指定 `CardType`/`TargetType`。
+- 料理参数：`public abstract FoodStats FoodStats { get; }`，子类声明四/多维参数。
+- 动态变量：`StringVar("Stats")`（料理参数展示行）+ `IntVar("PlaysRemaining")`（剩余打出次数）。
+- **打出 5 次移除**：
+  - `[SavedProperty] PlaysUsed` 持久化计数；
+  - 战斗卡是牌组卡的克隆，通过 `CardModel.DeckVersion` 定位牌组原卡；
+  - `CountPlayAndRemoveIfNeeded(deckCard, combatCard)` 同时刷新两张卡的剩余次数显示，满 5 次调用 `CardPileCmd.RemoveFromDeck(deckCard)`（要求卡牌当前在牌组堆，因此不能对战斗卡调用）。
+- **剩余次数动态显示**：`AfterCreated()` / `AfterDeserialized()` 中调用 `RefreshPlaysRemainingDisplay()` 同步动态变量（`DynamicVars` 为懒初始化，读档后首次访问即按已恢复的 `PlaysUsed` 生成）。
+- **休息站注册**：重写 `TryModifyRestSiteOptions`，牌组中存在料理卡时添加 `CookingRestSiteOption`（去重）。
+
+#### 数值与参数管理
+
+- `FoodCardValues.cs`：所有卡牌效果数值集中存储（Heal/Draw/Energy/Strength/Poison/Regen/StatusCount…）。
+- `FoodStats.cs`：料理维度（粘稠度/素度/肉度/怪物度/蜜度/鱼度/贝度 + 特殊料理），`ToDisplayString()` 生成描述展示行。
+- 描述示例：`"回复{Heal}点生命，抽{Draw}张牌。\n打出{PlaysRemaining}次后从牌组移除。\n{Stats}"`。
+
+#### 特殊卡牌实现要点
+
+| 卡牌 | 实现 |
+|------|------|
+| 同族团子 | 重写 `GetResultLocationForCardPlay()` 返回 `CardLocation(Owner, Draw, Top)` |
+| 活性酸液 | `PileType.Hand.GetPile(Owner)` 遍历 + `card.EnergyCost.SetThisCombat(rng.NextInt(4))` |
+| 藤蔓捆面 | `AttackCostUpPower`：`TryModifyEnergyCostInCombat` 给攻击牌 +1，回合结束移除 |
+| 鹿茸 | `CantPlayCardsPower`：`ShouldPlay` 返回 false，层数 2→1 表示"下一回合"，回合结束递减 |
+| 蛇果肉（能力牌） | `SnakeFruitMeatPower.AfterSideTurnStart` 触发效果并计数，满 5 次移除牌组卡 |
+
+### 4. 掉落系统（Patches/MonsterDropPatch.cs）
+
+- `[HarmonyPatch(typeof(CombatRoom), nameof(CombatRoom.OnCombatEnded))]` Postfix；
+- 静态字典 `Dictionary<Type, Type>`：怪物类 → 料理卡类（树叶/树枝史莱姆大小、同族信徒/神官等共享掉落）；
+- 为每个存活玩家 `RunState.CreateCard(...)` + `AddExtraReward(player, new SpecialCardReward(card, player))`；
+- 掉落可重复（料理是消耗品资源）。
+
+### 5. 料理系统（Utils/CookingManager.cs）
+
+- `FoodStatAggregate`：聚合所选卡牌的全部料理维度 + 特殊料理数量 + 是否含石头；
+- `CookingRecipe(Id, Priority, Condition, RelicType, Description)` 配方记录；
+- **每次料理只合成一项**：`GetRelicType(cards)` 按优先级从高到低找第一个命中配方，无命中返回失败料理；
+- 优先级：特殊料理 ＞ 混合料理 ＞ 粘稠度 ＞ 怪物度 ＞ 蜜度 ＞ 鱼度 ＞ 贝度 ＞ 肉度 ＞ 素度；
+- 扩展 API：`RegisterRecipe(recipe)` 直接追加配方；
+- 当前配方：烤石子（石头+任意）、失败料理（两个特殊料理）、汉堡包（素2~3.5 且 肉2~3.5）、肉丸（仅有肉度 2~3.5）、大锅肉（肉度≥4）、失败料理兜底。
+
+### 6. 休息站"料理"选项（RestSite/CookingRestSiteOption.cs）
+
+- `OptionId = "MC_COOK"`：标题走 `OPTION_MC_COOK.name`（"料理"），与原版 `COOK`（肉刀烹饪）完全独立；
+- **选项图标**：`RestSiteOption.Icon` 是非虚属性，且原始 getter 会加载"不存在的图标路径"直接抛错。属性 getter 用 `[HarmonyPatch]` 注解经 `PatchAll` 发现不可靠（与基石符文等 Mod 遇到的问题一致），必须在 `Install(harmony)` 中用 `AccessTools.PropertyGetter` + `harmony.Patch(getter, prefix)` **手动打补丁**，Prefix 返回 false 跳过原逻辑，把图标替换为本 Mod 的 `料理.png`（缺失时回退游戏 `option_cook.png`），见 `Patches/RestSiteOptionPatches.cs`；
+- `IsEnabled`：牌组中料理卡 ≥ 2 张；
+- `OnSelect`：`CardSelectCmd.FromDeckGeneric(Owner, prefs, filter)`，`CardSelectorPrefs(prompt, 2, 4)`；取消/不足 2 张返回 false（选项保留）；
+- **仅触发一次**：选项被选后从选项列表移除；`TryModifyRestSiteOptions` 只在进入休息站时生成一次；
+- **消耗休息次数**：料理与原版休息/锻造等选项一致，选择后本次休息站结束（与原版行为相同）。
+
+### 7. 合成遗物（Relics/）
+
+| 遗物 | 效果 | 实现钩子 |
+|------|------|----------|
+| 肉丸 | 前 2 回合 +1 抽牌 +1 能量 | `ModifyHandDraw` + `AfterSideTurnStart`（TurnNumber ≤ 2） |
+| 大锅肉 | 前 3 回合 +1 抽牌 +1 能量 | 同上（TurnNumber ≤ 3） |
+| 汉堡包 | 战斗开始 3 层再生；第 1 回合 +1 能量 +1 抽牌 | `PowerCmd.Apply<RegenPower>` + `ModifyHandDraw`/能量（TurnNumber == 1） |
+| 烤石子 | 前 3 回合开始时 7 点格挡 | `CreatureCmd.GainBlock`（TurnNumber ≤ 3） |
+| 失败料理 | 无效果 | 空遗物 |
+
+要点：遗物 `AfterSideTurnStart(CombatSide, IReadOnlyList<Creature>, ICombatState)` 无 `PlayerChoiceContext`，抽牌用 `ModifyHandDraw(Player, decimal)` 钩子（按 `Owner.PlayerCombatState.TurnNumber` 限定回合），能量/格挡/能力可直接用命令。
+
+### 8. 构建与部署
+
+```powershell
+.\build.ps1          # 内部：$env:NUGET_PACKAGES=共享缓存 + dotnet build -c Debug -o build
+```
+
+- 产物：`build/SpireDelight.dll` + `build/SpireDelight.json`；
+- `SpireDelight.pck` 由 Godot（Megadot 4.5.1）导出：项目 → 导出 → Windows Desktop → 导出 PCK/ZIP；
+- 部署：三个同名文件放入游戏 `mods/SpireDelight/`；
+- 日志：`C:\Users\<用户名>\AppData\Roaming\SlayTheSpire2\logs\godot.log`。
+
+**本地化注意**：遗物除 `title`/`description` 外，还需同时提供中英文 `.flavor` 小字键，否则会回退显示英文风味文本。
+
+### 9. 已知注意点与扩展点
+
+- 战斗卡与牌组卡是克隆关系：战斗内计数/移除必须经 `DeckVersion` 操作牌组原卡；
+- `DynamicVars` 懒初始化：首次访问才由 `CanonicalVars` 生成，读档恢复后需在 `AfterDeserialized` 刷新展示变量；
+- 动态关键词（`CanonicalKeywords`）有缓存，运行期变化应使用 `AddKeyword()`；
+- 模型实例严禁直接 `new`/`Activator.CreateInstance`（会抛 `DuplicateModelException`），必须经 `ModelDb.Card<T>()` / `ModelDb.Relic<T>()` 获取规范实例；
+- 若同时持有原版"肉刀"遗物，休息站会出现原版"烹饪"与本 Mod"料理"两个按钮（相互独立，属预期）；
+- 蜜度/鱼度/贝度维度已在 `FoodStats` 预留，新增卡牌与配方只需扩展数值与 `RegisterRecipe`；
+- **图片配置**：素材统一放 `MonsterCuisineResources/image/{Cards,Relics,RestSite}`，具体注册方式见下文 [10. 自定义图片注册](#10-自定义图片注册卡牌--遗物--篝火选项)。
+
+### 10. 自定义图片注册（卡牌 / 遗物 / 篝火选项）
+
+Mod 素材统一放在 Godot 资源目录（本 Mod 为 `MonsterCuisineResources/image/...`），最终打进 `.pck`。新图片放入目录后，用 Godot 打开项目会自动导入（生成 `.import`）；之后每次改动图片都需重新导出 `.pck`。
+
+#### 10.1 卡牌图片（重写 PortraitPath）
+
+`CardModel.PortraitPath` 是虚属性，子类直接重写即可。推荐用 `ResourceLoader.Exists` 做缺失回退（图片没进 pck 时自动用默认卡图，避免报错）：
+
+```csharp
+using Godot;
+
+public sealed class NibbitMeat : FoodCardModel
+{
+    private const string ModPortraitPath =
+        "res://MonsterCuisineResources/image/Cards/小啃兽肉.jpg";
+
+    public override string PortraitPath => ResourceLoader.Exists(ModPortraitPath)
+        ? ModPortraitPath
+        : base.PortraitPath;   // 回退：默认卡图（如 Infection 的卡图）
+    // ...
+}
+```
+
+要点：
+- 路径格式为 `res://<资源目录>/...`，中文/英文文件名均可；
+- `PortraitPath` 同时用于战斗奖励展示、战斗内渲染与百科；
+- 卡牌大图/立绘如需单独配置，参考游戏原版卡牌的 `PortraitPath` 相关属性，本 Mod 暂只覆盖 `PortraitPath`。
+
+#### 10.2 遗物图片（重写 PackedIconPath）
+
+`RelicModel.PackedIconPath` 是虚属性，重写为自定义图片；描边/大图（`PackedIconOutlinePath` / `BigIconPath`）回退到同一张图即可：
+
+```csharp
+using Godot;
+
+public sealed class Meatball : RelicModel
+{
+    private const string ModIconPath =
+        "res://MonsterCuisineResources/image/Relics/肉丸.jpg";
+
+    public override string PackedIconPath => ResourceLoader.Exists(ModIconPath)
+        ? ModIconPath
+        : ModelDb.Relic<Vajra>().PackedIconPath;  // 回退：原版遗物图标
+
+    protected override string PackedIconOutlinePath => PackedIconPath; // 描边回退
+    protected override string BigIconPath => PackedIconPath;           // 大图回退
+    // ...
+}
+```
+
+要点：
+- 原版遗物图标是图集裁切 `.tres`，但直接给图片路径（png/jpg）同样可作为 `Texture2D` 加载；
+- 战斗栏小图标与遗物栏/百科大图标默认共用同一张图；如需更精细，可分别配置 outline/big 路径。
+
+#### 10.3 篝火选项图标（RestSiteOption.Icon，需手动 Harmony Patch）
+
+`RestSiteOption.Icon` 是**非虚属性**，且原始 getter 会按 `OptionId` 生成固定路径（`option_<id>.png`），不存在时直接抛错。因此不能靠子类重写，必须用 Harmony 拦截 getter；并且属性 getter 用 `[HarmonyPatch]` 注解经 `PatchAll` 自动发现**不可靠**（与基石符文/俄洛伊 Mod 遇到的坑一致），**必须手动 `harmony.Patch(getter, prefix)`**：
+
+```csharp
+// ModInitializer 中，在 harmony.PatchAll() 之后调用：
+RestSiteOptionPatches.Install(harmony);
+
+// Patches/RestSiteOptionPatches.cs
+public static void Install(Harmony harmony)
+{
+    MethodInfo? getter = AccessTools.PropertyGetter(
+        typeof(RestSiteOption), nameof(RestSiteOption.Icon));
+    if (getter == null) return; // 找不到 getter 则回退默认图标
+
+    harmony.Patch(getter, prefix: new HarmonyMethod(
+        typeof(RestSiteOptionPatches), nameof(IconPrefix)));
+}
+
+private static bool IconPrefix(RestSiteOption __instance, ref Texture2D __result)
+{
+    if (__instance is not CookingRestSiteOption)
+        return true; // 其他选项走原逻辑
+
+    string path = ResourceLoader.Exists(ModIconPath)
+        ? ModIconPath
+        : "res://images/ui/rest_site/option_cook.png"; // 缺失回退游戏烹饪图标
+    __result = ResourceLoader.Load<Texture2D>(path);
+    return false; // 跳过原始 getter，避免"资源不存在"抛错
+}
+```
+
+要点：
+- Prefix 必须 `return false` 并设置 `__result`，否则原始 getter 仍会执行并抛"资源不存在"；
+- 选项的资源预载 `AssetPaths` 也要一并覆盖为自定义图片路径（见 `CookingRestSiteOption.AssetPaths`）；
+- 补丁安装结果与生效情况可加日志确认（本 Mod 的 `RestSiteOptionPatches` 内置诊断日志）。
+
+#### 10.4 通用注意事项
+
+1. **重新导出 pck**：图片改动后必须用 Godot 重新导出 `SpireDelight.pck`，否则 `res://` 路径加载不到（代码回退可避免报错，但看不到新图）；
+2. **Godot 导入**：新图片放入资源目录后，打开项目让 Godot 自动生成 `.import` 文件；
+3. **路径大小写**：`res://` 路径区分大小写，需与目录/文件名完全一致；
+4. **缺失回退**：所有自定义图片都建议带 `ResourceLoader.Exists` 回退，保证 pck 未更新时游戏不崩溃；
+5. 素材目录位于 Godot 项目根内即可被打进 pck，不要求与 Mod ID 同名。
+
+---
+
 *本文档基于《杀戮尖塔2》官方 Mod 开发指南，适用于 Godot 引擎和 C# 语言开发。*

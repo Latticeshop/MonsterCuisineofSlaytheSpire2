@@ -1,0 +1,17 @@
+{
+  "MEATBALL.title": "肉丸",
+  "MEATBALL.description": "前两个回合开始时，多抽1张牌，多获得1点[gold]能量[/gold]。",
+  "MEATBALL.flavor": "圆滚滚的肉丸，吃了之后前两个回合格外有劲。",
+  "BIG_POT_MEAT.title": "大锅肉",
+  "BIG_POT_MEAT.description": "前三个回合开始时，多抽1张牌，多获得1点[gold]能量[/gold]。",
+  "BIG_POT_MEAT.flavor": "一锅管饱的大肉，前三个回合都干劲十足。",
+  "HAMBURGER.title": "汉堡包",
+  "HAMBURGER.description": "每场战斗开始时获得3层[gold]再生[/gold]；第一回合多获得1点[gold]能量[/gold]、多抽1张牌。",
+  "HAMBURGER.flavor": "素肉均衡，营养美味，战斗起来更有底气。",
+  "ROASTED_STONE.title": "烤石子",
+  "ROASTED_STONE.description": "每场战斗前三个回合开始时，获得7点[gold]格挡[/gold]。",
+  "ROASTED_STONE.flavor": "烤过的石头格外暖手，还能防潮，阴雨连绵的日子最需要它。",
+  "FAILED_DISH.title": "失败料理",
+  "FAILED_DISH.description": "一盘失败的料理，没有任何效果。",
+  "FAILED_DISH.flavor": "一团黑糊糊的东西，看着就没什么食欲。"
+}

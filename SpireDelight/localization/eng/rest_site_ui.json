@@ -1,0 +1,5 @@
+{
+  "OPTION_MC_COOK.name": "Cook",
+  "OPTION_MC_COOK.description": "Select 2-4 [gold]Spire Delight[/gold] cards to cook. You will receive a relic based on their cooking stats (selected cards are removed).",
+  "OPTION_MC_COOK.descriptionDisabled": "[red]You need at least 2 Spire Delight cards in your deck to cook. [/red]"
+}

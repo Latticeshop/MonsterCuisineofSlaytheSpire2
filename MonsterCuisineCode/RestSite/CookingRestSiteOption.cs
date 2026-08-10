@@ -21,9 +21,6 @@ namespace MonsterCuisineCode.RestSite;
 /// </summary>
 public sealed class CookingRestSiteOption : RestSiteOption
 {
-    /// <summary>标记本次选择为"料理"，使休息站保留剩余选项（不消耗休息次数）。</summary>
-    internal static bool KeepRestSiteOptionsOpen { get; set; }
-
     /// <summary>独立于原版选项的 ID：标题取"料理"，图标由补丁复用游戏的烹饪图标。</summary>
     public override string OptionId => "MC_COOK";
 
@@ -33,7 +30,7 @@ public sealed class CookingRestSiteOption : RestSiteOption
         PileType.Deck.GetPile(Owner).Cards.Count(card => card is FoodCardModel) >= 2;
 
     public override IEnumerable<string> AssetPaths =>
-        ["res://images/ui/rest_site/option_cook.png"];
+        ["res://MonsterCuisineResources/image/RestSite/料理.png"];
 
     public CookingRestSiteOption(Player owner)
         : base(owner)
@@ -54,21 +51,16 @@ public sealed class CookingRestSiteOption : RestSiteOption
             return false;
         }
 
-        foreach (Type relicType in CookingManager.GetRelicTypes(selected))
+        RelicModel canonicalRelic = CookingManager.GetRelicFactory(selected)();
+        Type relicType = canonicalRelic.GetType();
+        if (!Owner.Relics.Any(relic => relic.GetType() == relicType))
         {
-            if (Owner.Relics.Any(relic => relic.GetType() == relicType))
-            {
-                continue;
-            }
-
-            var relic = (RelicModel)Activator.CreateInstance(relicType)!;
-            await RelicCmd.Obtain(relic.ToMutable(), Owner);
+            await RelicCmd.Obtain(canonicalRelic.ToMutable(), Owner);
         }
 
         await CardPileCmd.RemoveFromDeck(selected);
-
-        // 料理成功后保留休息站剩余选项（休息/锻造等仍可使用）
-        KeepRestSiteOptionsOpen = true;
+        ModLogger.Instance.Info(
+            $"尖塔乐事料理成功：{selected.Count} 张卡 → 遗物 {relicType.Name}");
         return true;
     }
 

@@ -7,6 +7,7 @@ using MegaCrit.Sts2.Core.Models.Monsters;
 using MegaCrit.Sts2.Core.Rewards;
 using MegaCrit.Sts2.Core.Rooms;
 using MonsterCuisineCode.Cards;
+using MonsterCuisineCode.Utils;
 
 namespace MonsterCuisineCode.Patches;
 
@@ -16,29 +17,29 @@ namespace MonsterCuisineCode.Patches;
 [HarmonyPatch(typeof(CombatRoom), nameof(CombatRoom.OnCombatEnded))]
 public static class MonsterDropPatch
 {
-    private static readonly Dictionary<Type, Type> Drops = new()
+    private static readonly Dictionary<Type, Func<CardModel>> Drops = new()
     {
-        { typeof(LeafSlimeS), typeof(VanillaJelly) },
-        { typeof(LeafSlimeM), typeof(VanillaJelly) },
-        { typeof(ShrinkerBeetle), typeof(BeadCookie) },
-        { typeof(Mawler), typeof(BruteTail) },
-        { typeof(SlitheringStrangler), typeof(SpikySnakeMeat) },
-        { typeof(SnappingJaxfruit), typeof(SnakeFruitMeat) },
-        { typeof(KinFollower), typeof(KinDumpling) },
-        { typeof(KinPriest), typeof(KinDumpling) },
-        { typeof(FuzzyWurmCrawler), typeof(ActiveAcid) },
-        { typeof(TwigSlimeS), typeof(SpikyJelly) },
-        { typeof(TwigSlimeM), typeof(SpikyJelly) },
-        { typeof(VineShambler), typeof(VineNoodleBundle) },
-        { typeof(PhrogParasite), typeof(GreenDumpling) },
-        { typeof(Fogmog), typeof(SporeMushroom) },
-        { typeof(Flyconid), typeof(GlowingMushroom) },
-        { typeof(CeremonialBeast), typeof(DeerAntler) },
-        { typeof(BygoneEffigy), typeof(Stone) },
-        { typeof(Byrdonis), typeof(BirdMeat) },
-        { typeof(Inklet), typeof(Petroleum) },
-        { typeof(Vantom), typeof(ActivePetroleum) },
-        { typeof(Nibbit), typeof(NibbitMeat) }
+        { typeof(LeafSlimeS), () => ModelDb.Card<VanillaJelly>() },
+        { typeof(LeafSlimeM), () => ModelDb.Card<VanillaJelly>() },
+        { typeof(ShrinkerBeetle), () => ModelDb.Card<BeadCookie>() },
+        { typeof(Mawler), () => ModelDb.Card<BruteTail>() },
+        { typeof(SlitheringStrangler), () => ModelDb.Card<SpikySnakeMeat>() },
+        { typeof(SnappingJaxfruit), () => ModelDb.Card<SnakeFruitMeat>() },
+        { typeof(KinFollower), () => ModelDb.Card<KinDumpling>() },
+        { typeof(KinPriest), () => ModelDb.Card<KinDumpling>() },
+        { typeof(FuzzyWurmCrawler), () => ModelDb.Card<ActiveAcid>() },
+        { typeof(TwigSlimeS), () => ModelDb.Card<SpikyJelly>() },
+        { typeof(TwigSlimeM), () => ModelDb.Card<SpikyJelly>() },
+        { typeof(VineShambler), () => ModelDb.Card<VineNoodleBundle>() },
+        { typeof(PhrogParasite), () => ModelDb.Card<GreenDumpling>() },
+        { typeof(Fogmog), () => ModelDb.Card<SporeMushroom>() },
+        { typeof(Flyconid), () => ModelDb.Card<GlowingMushroom>() },
+        { typeof(CeremonialBeast), () => ModelDb.Card<DeerAntler>() },
+        { typeof(BygoneEffigy), () => ModelDb.Card<Stone>() },
+        { typeof(Byrdonis), () => ModelDb.Card<BirdMeat>() },
+        { typeof(Inklet), () => ModelDb.Card<Petroleum>() },
+        { typeof(Vantom), () => ModelDb.Card<ActivePetroleum>() },
+        { typeof(Nibbit), () => ModelDb.Card<NibbitMeat>() }
     };
 
     [HarmonyPostfix]
@@ -53,9 +54,14 @@ public static class MonsterDropPatch
         foreach ((var monster, _) in __instance.Encounter.MonstersWithSlots)
         {
             Type monsterType = monster.GetType();
-            if (!Drops.TryGetValue(monsterType, out Type? cardType) ||
-                cardType == null ||
-                !awarded.Add(cardType))
+            if (!Drops.TryGetValue(monsterType, out Func<CardModel>? factory) ||
+                factory == null)
+            {
+                continue;
+            }
+
+            Type cardType = factory().GetType();
+            if (!awarded.Add(cardType))
             {
                 continue;
             }
@@ -63,9 +69,11 @@ public static class MonsterDropPatch
             foreach (var player in __instance.CombatState.Players)
             {
                 CardModel card = player.RunState.CreateCard(
-                    (CardModel)Activator.CreateInstance(cardType)!, player);
+                    factory(), player);
                 __instance.AddExtraReward(player, new SpecialCardReward(card, player));
             }
+            ModLogger.Instance.Info(
+                $"尖塔乐事掉落触发：{monsterType.Name} → {cardType.Name}");
         }
     }
 }

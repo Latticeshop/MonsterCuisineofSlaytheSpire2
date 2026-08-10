@@ -1,0 +1,38 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <ImplicitUsings>true</ImplicitUsings>
+    <AssemblyName>SpireDelight</AssemblyName>
+    <RootNamespace>MonsterCuisineCode</RootNamespace>
+    <Nullable>enable</Nullable>
+    <GodotProjectDir>$(MSBuildProjectDirectory)/</GodotProjectDir>
+
+    <!-- Debug符号配置：build时生成，publish时不包含 -->
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <!-- 引用游戏程序集（libs目录） -->
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(MSBuildProjectDirectory)/libs/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="sts2">
+      <HintPath>$(MSBuildProjectDirectory)/libs/sts2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- 全局 using：游戏核心的玩家选择上下文等常用命名空间 -->
+  <ItemGroup>
+    <Using Include="MegaCrit.Sts2.Core.GameActions.Multiplayer" />
+  </ItemGroup>
+
+  <!-- 构建后把 Mod 清单文件复制到输出目录（与 .dll/.pck 同名同目录） -->
+  <Target Name="CopyModJsonToOutput" AfterTargets="Build">
+    <Copy SourceFiles="$(MSBuildProjectDirectory)/SpireDelight.json"
+          DestinationFolder="$(OutputPath)" />
+  </Target>
+</Project>
