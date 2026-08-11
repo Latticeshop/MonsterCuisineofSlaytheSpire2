@@ -5,3 +5,6 @@
 # IDE / AI tools configs
 .codex/
 .trae/
+
+# Claude Code local config
+.claude/
