@@ -3258,7 +3258,7 @@ SlayTheSpire2Export/
 ## 附：尖塔乐事（Spire Delight）Mod 实现参考
 
 > 本节记录本工作区《尖塔乐事》Mod（Mod ID 与编译文件名为 `SpireDelight`，游戏内展示名"尖塔乐事 Spire Delight"）的落地实现，供后续维护与查阅。
-> 玩法：击杀对应怪物掉落料理卡牌；篝火"料理"选择 2-4 张料理卡，按料理参数合成一项遗物（卡牌被移除）。
+> 玩法：击杀对应怪物掉落料理卡牌；篝火"料理"选择 2-4 张料理卡，按料理参数合成一项遗物（卡牌被移除）；篝火"烹饪"可将 1 张生食材卡原位转换为对应的熟食材卡牌。
 
 ### 1. 项目目录结构
 
@@ -3273,12 +3273,12 @@ monster-cuisine/
 ├── libs/                          # sts2.dll / 0Harmony.dll / GodotSharp.dll（从参考项目复制）
 ├── MonsterCuisineCode/
 │   ├── ModInitializer.cs          # [ModInitializer] + harmony.PatchAll()
-│   ├── Cards/                     # FoodCardModel 基类 + 18 张料理卡 + FoodCardValues 数值存储
-│   ├── Powers/                    # 蛇果肉能力 / 禁出牌（鹿茸）/ 攻击费用提升（藤蔓捆面）
+│   ├── Cards/                     # FoodCardModel 基类 + 18 张生食材卡 + 17 张熟食材卡 + FoodCardValues 数值存储
+│   ├── Powers/                    # 蛇果肉能力 / 禁出牌（鹿茸）/ 攻击费用提升（藤蔓捆面）/ 攻击费用降低（藤蔓拌面）/ 熟蛇果能力
 │   ├── Relics/                    # 5 个合成遗物
-│   ├── RestSite/                  # CookingRestSiteOption（篝火料理）
+│   ├── RestSite/                  # CookingRestSiteOption（篝火料理）+ CookIngredientOption（篝火烹饪）
 │   ├── Patches/                   # 掉落补丁 / 百科已发现补丁 / 休息站图标与"不消耗"补丁
-│   └── Utils/                     # FoodStats（料理参数）/ CookingManager（配方系统）
+│   └── Utils/                     # FoodStats（料理参数）/ CookingManager（配方系统）/ CookedFood（生熟配方映射）
 └── SpireDelight/                  # Godot 资源（localization/zhs|eng，最终打进 .pck）
 ```
 
@@ -3303,7 +3303,7 @@ monster-cuisine/
   - 战斗卡是牌组卡的克隆，通过 `CardModel.DeckVersion` 定位牌组原卡；
   - `CountPlayAndRemoveIfNeeded(deckCard, combatCard)` 同时刷新两张卡的剩余次数显示，满 5 次调用 `CardPileCmd.RemoveFromDeck(deckCard)`（要求卡牌当前在牌组堆，因此不能对战斗卡调用）。
 - **剩余次数动态显示**：`AfterCreated()` / `AfterDeserialized()` 中调用 `RefreshPlaysRemainingDisplay()` 同步动态变量（`DynamicVars` 为懒初始化，读档后首次访问即按已恢复的 `PlaysUsed` 生成）。
-- **休息站注册**：重写 `TryModifyRestSiteOptions`，牌组中存在料理卡时添加 `CookingRestSiteOption`（去重）。
+- **休息站注册**：重写 `TryModifyRestSiteOptions`，牌组中存在料理卡时添加 `CookingRestSiteOption`（去重）；可烹饪的生食材卡再额外添加 `CookIngredientOption`（详见下文第 7 节"生食材烹饪系统"）。
 
 #### 数值与参数管理
 
@@ -3346,7 +3346,96 @@ monster-cuisine/
 - **仅触发一次**：选项被选后从选项列表移除；`TryModifyRestSiteOptions` 只在进入休息站时生成一次；
 - **消耗休息次数**：料理与原版休息/锻造等选项一致，选择后本次休息站结束（与原版行为相同）。
 
-### 7. 合成遗物（Relics/）
+### 7. 生食材烹饪系统（熟食材卡牌 + 篝火"烹饪"）
+
+> 玩法闭环：击杀怪物掉落**生食材**卡牌；篝火"烹饪"把 1 张生食材卡原位转换为对应的**熟食材**卡（生卡移除）。熟卡同生卡：0 费、Token 稀有度、打出 5 次后从牌组移除，效果整体优于生卡；但不掉落、不可再烹饪、不参与"料理"合成。
+
+#### 7.1 熟食材卡牌（Cards/FoodCardModel 子类）
+
+17 张熟卡全部继承 `FoodCardModel`，复用基类"打出 5 次移除"（`PlaysUsed` + `DeckVersion` 定位 + `CountPlayAndRemoveIfNeeded`）；经 `ModHelper.AddModelToPool(typeof(ColorlessCardPool), ...)` 注册（Token 不进奖励池，仅百科可见）。
+
+| 熟卡（类名） | 由生卡（类名）煮成 | 效果 | 料理参数 |
+|------|------|------|---------|
+| 青叶糯丸 `GreenLeafStickyBall` | 同族团子 `KinDumpling` | 抽1，得1能量，放回抽牌堆顶（**无消耗**） | 肉1 素1 |
+| 糯珠软饼 `StickyPearlSoftCake` | 爆珠饼干 `BeadCookie` | 得1能量，抽1，敌1回合缩小 | 粘1 肉0.5 |
+| 熟蛮兽尾巴 `CookedBruteTail` | 蛮兽尾巴 `BruteTail` | 全体1易伤，抽2，得1能量，回3血 | 肉1.5 |
+| 香草布丁 `VanillaPudding` | 香草果冻 `VanillaJelly` | 回5血，抽2 | 粘1 素0.5 |
+| 烤蛇肉 `RoastedSnakeMeat` | 带刺蛇肉 `SpikySnakeMeat` | 得2能量，抽1，敌3中毒 | 肉1 怪0.5 |
+| 烤酸虫 `RoastedSourBug` | 活性酸液 `ActiveAcid` | 抽4，随机所有手牌耗能 | 粘1 肉0.5 |
+| 软糯布丁 `SoftPudding` | 带刺果冻 `SpikyJelly` | 3再生，抽2 | 粘1 |
+| 藤蔓拌面 `VineNoodleSalad` | 藤蔓捆面 `VineNoodleBundle` | 3再生，手牌攻击牌本回合耗能-1 | 素1.5 |
+| 烤青团 `RoastedGreenDumpling` | 青团 `GreenDumpling` | 全体5中毒，回7血 | 粘2 |
+| 熟孢子蘑菇 `CookedSporeMushroom` | 孢子蘑菇 `SporeMushroom` | 回3血，抽1，选3张手牌添加虚无 | 素1.5 |
+| 熟蛇果 `CookedSnakeFruit` | 蛇果肉 `SnakeFruitMeat` | **能力牌**：每回合开始得1力量 | 素1 怪0.5 |
+| 烤发光蘑菇 `RoastedGlowingMushroom` | 发光蘑菇 `GlowingMushroom` | 抽1，回7血，全体1易伤 | 素1.5 怪0.5 |
+| 烤鹿茸 `RoastedDeerAntler` | 鹿茸 `DeerAntler` | 回10血 | 特殊 |
+| 火头 `FireHead` | 石头 `Stone` | 自己失去99血 | 特殊 |
+| 烧鸟肉 `RoastedBirdMeat` | 鸟肉 `BirdMeat` | 回7血，抽1 | 肉2 |
+| 变形石油 `TransformedPetroleum` | 石油 `Petroleum` | 抽2 | 粘2 |
+| 生气石油 `AngryPetroleum` | 活性石油 `ActivePetroleum` | 不抽牌 | 特殊 |
+
+要点：
+
+- **全体目标空安全**：熟卡的 `PlayEffect` 取敌全队用 `Owner.Creature.CombatState?.HittableEnemies ?? Array.Empty<Creature>()`——`CombatState` 在战斗外为 null（如图鉴悬停 canonical 实例时），必须空安全取值；
+- **能力型熟卡（熟蛇果）**：重写 `OnPlay`（不调基类效果）改为施加 `CookedSnakeFruitPower`，并 `power.SourceDeckCard = DeckVersion as FoodCardModel` 关联到牌组原卡，才能驱动"满 5 次移除"；`PlayEffect` 返回空任务；
+- **随机耗能（烤酸虫）**：与生卡活性酸液共用逻辑——`Owner.RunState.Rng.CombatEnergyCosts.NextInt(4)` + `card.EnergyCost.SetThisCombat(cost)` + `NCard.FindOnTable(card)?.PlayRandomizeCostAnim()`。
+
+#### 7.2 生熟配方映射（Utils/CookedFood.cs）
+
+用"生卡类型 → 熟卡获取工厂"字典维护 17 组映射，避免反射 / `Activator.CreateInstance`（模型实例严禁直接 `new`）：
+
+```csharp
+private static readonly IReadOnlyDictionary<Type, Func<CardModel>> Recipes =
+    new Dictionary<Type, Func<CardModel>>
+    {
+        [typeof(KinDumpling)] = () => ModelDb.Card<GreenLeafStickyBall>(),
+        [typeof(BeadCookie)] = () => ModelDb.Card<StickyPearlSoftCake>(),
+        // ... 共 17 组
+    };
+
+public static bool CanCook(CardModel card) => Recipes.ContainsKey(card.GetType());
+public static CardModel? GetCookedCanonical(CardModel rawCard) =>
+    Recipes.TryGetValue(rawCard.GetType(), out Func<CardModel>? factory) ? factory() : null;
+```
+
+要点：
+
+- `GetCookedCanonical` 返回 `ModelDb.Card<T>()` **规范实例**；实际进牌组的是 `Owner.RunState.CreateCard(canonical, Owner)` 创建的**可变实例**；
+- 新增生熟组合只需在字典加一行，其余代码零改动。
+
+#### 7.3 篝火"烹饪"选项（RestSite/CookIngredientOption.cs）
+
+与"料理"（合成遗物）并列的新休息站选项，`OptionId = "MC_COOK_FOOD"`：
+
+- `IsEnabled`：牌组中存在 ≥1 张 `card is FoodCardModel && CookedFood.CanCook(card)` 的生食材卡；
+- `OnSelect`：`CardSelectCmd.FromDeckGeneric(Owner, prefs, card => card is FoodCardModel && CookedFood.CanCook(card))`，`CardSelectorPrefs(new LocString("card_keywords", "mc.cookfood.prompt"), 1, 1)` 只选 1 张；取消/不足返回 `false`（选项保留）；
+- **转换**：`RunState.CreateCard(canonicalCooked, Owner)` 生成熟卡 → `CardPileCmd.Add(熟卡, PileType.Deck)` → `CardPileCmd.RemoveFromDeck(生卡)`；
+- **仅触发一次**：与"料理"一致，选中后本次休息站结束；
+- **图标**：`AssetPaths` 指向 `料理.png`，图标经 `RestSiteOptionPatches.IconPrefix` 统一替换（见 7.4）。
+
+#### 7.4 接入点（FoodCardModel / 图标补丁 / 本地化）
+
+- `FoodCardModel.TryModifyRestSiteOptions`：每张料理牌被扫描时，除"料理"外，可烹饪的生卡再补一个 `CookIngredientOption`；两次都先 `options.Any(...)` 去重再 `Add`：
+
+  ```csharp
+  if (!options.Any(option => option is CookingRestSiteOption))
+      options.Add(new CookingRestSiteOption(player));
+
+  if (CookedFood.CanCook(this) && !options.Any(option => option is CookIngredientOption))
+      options.Add(new CookIngredientOption(player));
+  ```
+
+- **图标补丁排除**：`RestSiteOptionPatches.IconPrefix` 对 `CookingRestSiteOption` **和** `CookIngredientOption` 都返回自定义图标——原条件 `__instance is not CookingRestSiteOption` 需扩为 `__instance is not (CookingRestSiteOption or CookIngredientOption)`，其余选项走原逻辑；
+- **本地化键**：`OPTION_MC_COOK_FOOD.name / description / descriptionDisabled`（`rest_site_ui.json`，中英）；选牌提示 `mc.cookfood.prompt`、熟孢子蘑菇选牌提示 `mc.cookfood.hand_ethereal.prompt`（`card_keywords.json`，中英）。
+
+#### 7.5 新增能力（Powers/）
+
+| 能力 | 卡牌 | 实现 |
+|------|------|------|
+| `AttackCostDownPower` | 藤蔓拌面 | Buff + `StackType.Single`；`TryModifyEnergyCostInCombat` 对玩家攻击牌 `originalCost - 1m`；`AfterSideTurnEnd` 玩家回合末移除（与生卡藤蔓捆面的 `AttackCostUpPower` 对称） |
+| `CookedSnakeFruitPower` | 熟蛇果 | Buff + `StackType.Counter`；`AfterSideTurnStart` 玩家回合开始 `PowerCmd.Apply<StrengthPower>(1)`，并递增 `SourceDeckCard.PlaysUsed`，满 5 次 `RemoveFromDeck` + `PowerCmd.Remove(this)` |
+
+### 8. 合成遗物（Relics/）
 
 | 遗物 | 效果 | 实现钩子 |
 |------|------|----------|
@@ -3358,7 +3447,7 @@ monster-cuisine/
 
 要点：遗物 `AfterSideTurnStart(CombatSide, IReadOnlyList<Creature>, ICombatState)` 无 `PlayerChoiceContext`，抽牌用 `ModifyHandDraw(Player, decimal)` 钩子（按 `Owner.PlayerCombatState.TurnNumber` 限定回合），能量/格挡/能力可直接用命令。
 
-### 8. 构建与部署
+### 9. 构建与部署
 
 ```powershell
 .\build.ps1          # 内部：$env:NUGET_PACKAGES=共享缓存 + dotnet build -c Debug -o build
@@ -3371,21 +3460,22 @@ monster-cuisine/
 
 **本地化注意**：遗物除 `title`/`description` 外，还需同时提供中英文 `.flavor` 小字键，否则会回退显示英文风味文本。
 
-### 9. 已知注意点与扩展点
+### 10. 已知注意点与扩展点
 
 - 战斗卡与牌组卡是克隆关系：战斗内计数/移除必须经 `DeckVersion` 操作牌组原卡；
 - `DynamicVars` 懒初始化：首次访问才由 `CanonicalVars` 生成，读档恢复后需在 `AfterDeserialized` 刷新展示变量；
 - 动态关键词（`CanonicalKeywords`）有缓存，运行期变化应使用 `AddKeyword()`；
 - 模型实例严禁直接 `new`/`Activator.CreateInstance`（会抛 `DuplicateModelException`），必须经 `ModelDb.Card<T>()` / `ModelDb.Relic<T>()` 获取规范实例；
-- 若同时持有原版"肉刀"遗物，休息站会出现原版"烹饪"与本 Mod"料理"两个按钮（相互独立，属预期）；
-- 蜜度/鱼度/贝度维度已在 `FoodStats` 预留，新增卡牌与配方只需扩展数值与 `RegisterRecipe`；
-- **图片配置**：素材统一放 `MonsterCuisineResources/image/{Cards,Relics,RestSite}`，具体注册方式见下文 [10. 自定义图片注册](#10-自定义图片注册卡牌--遗物--篝火选项)。
+- 若同时持有原版"肉刀"遗物，休息站会出现原版"烹饪"、本 Mod"料理"（合成遗物）与本 Mod"烹饪"（生→熟食材）共三个按钮（相互独立，属预期）；
+- 熟食材卡**不进入掉落池**（未加入 `MonsterDropPatch`），也不参与"料理"合成，只能经篝火"烹饪"转换获得；
+- 蜜度/鱼度/贝度维度已在 `FoodStats` 预留，新增卡牌与配方只需扩展数值与 `RegisterRecipe`；新增生→熟组合只需在 `CookedFood.Recipes` 字典加一行；
+- **图片配置**：素材统一放 `MonsterCuisineResources/image/{Cards,Relics,RestSite}`，具体注册方式见下文 [11. 自定义图片注册](#11-自定义图片注册卡牌--遗物--篝火选项)。
 
-### 10. 自定义图片注册（卡牌 / 遗物 / 篝火选项）
+### 11. 自定义图片注册（卡牌 / 遗物 / 篝火选项）
 
 Mod 素材统一放在 Godot 资源目录（本 Mod 为 `MonsterCuisineResources/image/...`），最终打进 `.pck`。新图片放入目录后，用 Godot 打开项目会自动导入（生成 `.import`）；之后每次改动图片都需重新导出 `.pck`。
 
-#### 10.1 卡牌图片（重写 PortraitPath）
+#### 11.1 卡牌图片（重写 PortraitPath）
 
 `CardModel.PortraitPath` 是虚属性，子类直接重写即可。推荐用 `ResourceLoader.Exists` 做缺失回退（图片没进 pck 时自动用默认卡图，避免报错）：
 
@@ -3409,7 +3499,7 @@ public sealed class NibbitMeat : FoodCardModel
 - `PortraitPath` 同时用于战斗奖励展示、战斗内渲染与百科；
 - 卡牌大图/立绘如需单独配置，参考游戏原版卡牌的 `PortraitPath` 相关属性，本 Mod 暂只覆盖 `PortraitPath`。
 
-#### 10.2 遗物图片（重写 PackedIconPath）
+#### 11.2 遗物图片（重写 PackedIconPath）
 
 `RelicModel.PackedIconPath` 是虚属性，重写为自定义图片；描边/大图（`PackedIconOutlinePath` / `BigIconPath`）回退到同一张图即可：
 
@@ -3435,7 +3525,7 @@ public sealed class Meatball : RelicModel
 - 原版遗物图标是图集裁切 `.tres`，但直接给图片路径（png/jpg）同样可作为 `Texture2D` 加载；
 - 战斗栏小图标与遗物栏/百科大图标默认共用同一张图；如需更精细，可分别配置 outline/big 路径。
 
-#### 10.3 篝火选项图标（RestSiteOption.Icon，需手动 Harmony Patch）
+#### 11.3 篝火选项图标（RestSiteOption.Icon，需手动 Harmony Patch）
 
 `RestSiteOption.Icon` 是**非虚属性**，且原始 getter 会按 `OptionId` 生成固定路径（`option_<id>.png`），不存在时直接抛错。因此不能靠子类重写，必须用 Harmony 拦截 getter；并且属性 getter 用 `[HarmonyPatch]` 注解经 `PatchAll` 自动发现**不可靠**（与基石符文/俄洛伊 Mod 遇到的坑一致），**必须手动 `harmony.Patch(getter, prefix)`**：
 
@@ -3456,7 +3546,8 @@ public static void Install(Harmony harmony)
 
 private static bool IconPrefix(RestSiteOption __instance, ref Texture2D __result)
 {
-    if (__instance is not CookingRestSiteOption)
+    // "料理"（合成遗物）与"烹饪"（生→熟食材）两个选项都使用自定义图标
+    if (__instance is not (CookingRestSiteOption or CookIngredientOption))
         return true; // 其他选项走原逻辑
 
     string path = ResourceLoader.Exists(ModIconPath)
@@ -3469,10 +3560,10 @@ private static bool IconPrefix(RestSiteOption __instance, ref Texture2D __result
 
 要点：
 - Prefix 必须 `return false` 并设置 `__result`，否则原始 getter 仍会执行并抛"资源不存在"；
-- 选项的资源预载 `AssetPaths` 也要一并覆盖为自定义图片路径（见 `CookingRestSiteOption.AssetPaths`）；
+- 选项的资源预载 `AssetPaths` 也要一并覆盖为自定义图片路径（见 `CookingRestSiteOption.AssetPaths` / `CookIngredientOption.AssetPaths`）；
 - 补丁安装结果与生效情况可加日志确认（本 Mod 的 `RestSiteOptionPatches` 内置诊断日志）。
 
-#### 10.4 通用注意事项
+#### 11.4 通用注意事项
 
 1. **重新导出 pck**：图片改动后必须用 Godot 重新导出 `SpireDelight.pck`，否则 `res://` 路径加载不到（代码回退可避免报错，但看不到新图）；
 2. **Godot 导入**：新图片放入资源目录后，打开项目让 Godot 自动生成 `.import` 文件；
