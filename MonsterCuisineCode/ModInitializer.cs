@@ -36,6 +36,25 @@ public static class ModInitializer
         ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(ActivePetroleum));
         ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(NibbitMeat));
 
+        // 熟食材卡牌（烹饪产物）：同样 Token 稀有度，仅百科可查。
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(GreenLeafStickyBall));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(StickyPearlSoftCake));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(CookedBruteTail));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(VanillaPudding));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(RoastedSnakeMeat));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(RoastedSourBug));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(SoftPudding));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(VineNoodleSalad));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(RoastedGreenDumpling));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(CookedSporeMushroom));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(CookedSnakeFruit));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(RoastedGlowingMushroom));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(RoastedDeerAntler));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(FireHead));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(RoastedBirdMeat));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(TransformedPetroleum));
+        ModHelper.AddModelToPool(typeof(ColorlessCardPool), typeof(AngryPetroleum));
+
         // 遗物注册进原版事件遗物池：Event 稀有度不参与默认遗物奖励，仅百科可查。
         ModHelper.AddModelToPool(typeof(EventRelicPool), typeof(Meatball));
         ModHelper.AddModelToPool(typeof(EventRelicPool), typeof(BigPotMeat));

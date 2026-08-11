@@ -41,7 +41,7 @@ public static class RestSiteOptionPatches
 
     private static bool IconPrefix(RestSiteOption __instance, ref Texture2D __result)
     {
-        if (__instance is not CookingRestSiteOption)
+        if (__instance is not (CookingRestSiteOption or CookIngredientOption))
         {
             return true; // 其他选项走原逻辑
         }

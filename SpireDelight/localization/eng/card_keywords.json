@@ -1,3 +1,5 @@
 {
-  "mc.cook.prompt": "Select Monster Cuisine cards to cook (2-4)"
+  "mc.cook.prompt": "Select Monster Cuisine cards to cook (2-4)",
+  "mc.cookfood.prompt": "Select 1 raw ingredient card to cook",
+  "mc.cookfood.hand_ethereal.prompt": "Choose 3 cards in your hand to gain Ethereal"
 }

@@ -1,5 +1,8 @@
 {
   "OPTION_MC_COOK.name": "料理",
   "OPTION_MC_COOK.description": "选择 2-4 张[gold]尖塔乐事[/gold]卡牌进行烹饪，根据料理参数合成对应料理遗物（被选中的卡牌将被移除）。",
-  "OPTION_MC_COOK.descriptionDisabled": "[red]你的牌组中至少需要 2 张料理卡牌才能烹饪。[/red]"
+  "OPTION_MC_COOK.descriptionDisabled": "[red]你的牌组中至少需要 2 张料理卡牌才能烹饪。[/red]",
+  "OPTION_MC_COOK_FOOD.name": "烹饪",
+  "OPTION_MC_COOK_FOOD.description": "选择 1 张[gold]尖塔乐事[/gold]生食材卡牌进行烹饪，将其转换为对应的熟食材卡牌（被选中的卡牌将被移除）。",
+  "OPTION_MC_COOK_FOOD.descriptionDisabled": "[red]你的牌组中至少需要 1 张可烹饪的生食材卡牌。[/red]"
 }

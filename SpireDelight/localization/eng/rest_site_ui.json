@@ -1,5 +1,8 @@
 {
   "OPTION_MC_COOK.name": "Cook",
   "OPTION_MC_COOK.description": "Select 2-4 [gold]Spire Delight[/gold] cards to cook. You will receive a relic based on their cooking stats (selected cards are removed).",
-  "OPTION_MC_COOK.descriptionDisabled": "[red]You need at least 2 Spire Delight cards in your deck to cook. [/red]"
+  "OPTION_MC_COOK.descriptionDisabled": "[red]You need at least 2 Spire Delight cards in your deck to cook. [/red]",
+  "OPTION_MC_COOK_FOOD.name": "Cook Ingredient",
+  "OPTION_MC_COOK_FOOD.description": "Select 1 [gold]Spire Delight[/gold] raw ingredient card to cook. It is converted into its cooked version (the selected card is removed).",
+  "OPTION_MC_COOK_FOOD.descriptionDisabled": "[red]You need at least 1 cookable raw ingredient card in your deck. [/red]"
 }

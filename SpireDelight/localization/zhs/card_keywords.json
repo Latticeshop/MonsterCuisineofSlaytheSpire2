@@ -1,3 +1,5 @@
 {
-  "mc.cook.prompt": "选择要烹饪的料理卡牌（2-4张）"
+  "mc.cook.prompt": "选择要烹饪的料理卡牌（2-4张）",
+  "mc.cookfood.prompt": "选择 1 张要烹饪的生食材卡牌",
+  "mc.cookfood.hand_ethereal.prompt": "选择 3 张手牌，为其添加虚无"
 }

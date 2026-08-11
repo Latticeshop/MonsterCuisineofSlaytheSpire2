@@ -84,6 +84,12 @@ public abstract class FoodCardModel : CardModel
         {
             options.Add(new CookingRestSiteOption(player));
         }
+
+        // 可烹饪的生食材卡额外提供"烹饪"选项（生食材 → 熟食材）。
+        if (CookedFood.CanCook(this) && !options.Any(option => option is CookIngredientOption))
+        {
+            options.Add(new CookIngredientOption(player));
+        }
         return true;
     }
 

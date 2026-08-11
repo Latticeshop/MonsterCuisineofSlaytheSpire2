@@ -44,6 +44,9 @@ public static class FoodCardValues
 
         /// <summary>往弃牌堆加入的状态牌数量</summary>
         public int StatusCount { get; set; }
+
+        /// <summary>从手牌中选择的卡牌数量</summary>
+        public int HandSelectCount { get; set; }
     }
 
     public static CardValues VanillaJelly => new() { Heal = 1m, Draw = 1 };
@@ -64,4 +67,24 @@ public static class FoodCardValues
     public static CardValues Petroleum => new() { Draw = 1 };
     public static CardValues ActivePetroleum => new() { Draw = 2 };
     public static CardValues NibbitMeat => new() { Strength = 2m, Weak = 1m };
+
+    // ============ 熟食材卡牌（烹饪产物） ============
+
+    public static CardValues GreenLeafStickyBall => new() { Draw = 1, Energy = 1m };
+    public static CardValues StickyPearlSoftCake => new() { Energy = 1m, Draw = 1, Shrink = 1m };
+    public static CardValues CookedBruteTail => new() { Energy = 1m, Draw = 2, Heal = 3m, Vulnerable = 1m };
+    public static CardValues VanillaPudding => new() { Heal = 5m, Draw = 2 };
+    public static CardValues RoastedSnakeMeat => new() { Energy = 2m, Draw = 1, Poison = 3m };
+    public static CardValues RoastedSourBug => new() { Draw = 4 };
+    public static CardValues SoftPudding => new() { Regen = 3m, Draw = 2 };
+    public static CardValues VineNoodleSalad => new() { Regen = 3m };
+    public static CardValues RoastedGreenDumpling => new() { Poison = 5m, Heal = 7m };
+    public static CardValues CookedSporeMushroom => new() { Heal = 3m, Draw = 1, HandSelectCount = 3 };
+    public static CardValues CookedSnakeFruit => new() { Strength = 1m };
+    public static CardValues RoastedGlowingMushroom => new() { Draw = 1, Heal = 7m, Vulnerable = 1m };
+    public static CardValues RoastedDeerAntler => new() { Heal = 10m };
+    public static CardValues FireHead => new() { SelfDamage = 99m };
+    public static CardValues RoastedBirdMeat => new() { Heal = 7m, Draw = 1 };
+    public static CardValues TransformedPetroleum => new() { Draw = 2 };
+    public static CardValues AngryPetroleum => new() { Draw = 0 };
 }
